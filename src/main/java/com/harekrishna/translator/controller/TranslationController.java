@@ -41,4 +41,9 @@ public class TranslationController {
         
         return translationRepository.save(translation);
     }
+
+    @PostMapping("/evaluate")
+    public Mono<com.harekrishna.translator.model.CorrectionResponse> evaluateTranslation(@RequestBody com.harekrishna.translator.model.CorrectionRequest request) {
+        return translationService.evaluateTranslation(request.getEnglishText(), request.getTamilTranslation());
+    }
 }

@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/translations")
-@CrossOrigin(origins = "*")
 public class TranslationController {
 
     @Autowired

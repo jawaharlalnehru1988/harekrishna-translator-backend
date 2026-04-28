@@ -33,7 +33,7 @@ public class EvaluationService {
                 "Analyze the accuracy, word choice, and whether the translation is comfortable for modern Tamil readers while maintaining the author's original intent and spiritual depth. " +
                 "Only provide suggestions if the translation accuracy is missed or can be significantly improved. Do not provide sentence-by-sentence commentary if it is already good. " +
                 "Respond in JSON format with exactly two fields:\n" +
-                "1. 'suggestions': Your feedback and suggested improvements.\n" +
+                "1. 'suggestions': Your feedback and suggested improvements. Use clear Markdown formatting with bullet points and double new lines (\\n\\n) between points to make it highly readable for the user.\n" +
                 "2. 'improvedTranslation': Your suggested improved version of the translation (if no improvements are needed, simply return the original Tamil translation provided).\n" +
                 "Ensure the response is valid JSON.";
 

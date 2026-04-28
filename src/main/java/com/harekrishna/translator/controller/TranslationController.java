@@ -28,6 +28,11 @@ public class TranslationController {
     @PostMapping
     public Mono<Translation> createTranslation(@RequestBody Map<String, String> request) {
         String sourceText = request.get("sourceText");
+        
+        if (sourceText != null && sourceText.length() > 3000) {
+            throw new IllegalArgumentException("Text is too long. Please limit your input to 3,000 characters for the best spiritual accuracy.");
+        }
+        
         return translationService.translate(sourceText);
     }
 

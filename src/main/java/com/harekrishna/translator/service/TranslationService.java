@@ -34,7 +34,9 @@ public class TranslationService {
         String systemPrompt = "You are an expert translator specializing in Krishna conscious spiritual books. " +
                 "Translate the following English text into Tamil. " +
                 "The translation must reflect the author's mood and intent, maintaining the spiritual depth and devotional fervor found in classic Vaishnava literature. " +
-                "Use appropriate Tamil spiritual terminology and ensure the tone is respectful and spiritually uplifting.";
+                "Use appropriate Tamil spiritual terminology and ensure the tone is respectful and spiritually uplifting. " +
+                "CRITICAL: 1. Use ONLY pure Tamil script characters; do not mix characters from other languages like Telugu. " +
+                "2. Provide ONLY the plain text translation. Do not use any Markdown formatting such as bolding (**), headers (#), or other style markers.";
 
         return webClient.post()
                 .uri(baseUrl)

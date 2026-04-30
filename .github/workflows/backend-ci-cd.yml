@@ -1,0 +1,60 @@
+name: Translator Backend CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run Tests
+        run: mvn -B test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Push Code to VPS and Build
+        uses: appleboy/ssh-action@master
+        with:
+          host: 91.99.67.35
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            set -e
+
+            # Navigate to backend project directory
+            cd /var/www/Translator/harekrishna-translator-backend
+
+            # Pull latest code
+            git pull origin master
+
+            # Build backend jar
+            mvn -B clean package -DskipTests
+
+            # Restart Spring Boot service
+            sudo systemctl daemon-reload
+            sudo systemctl restart translator-backend.service
+
+            # Verify service is up
+            sudo systemctl --no-pager --full status translator-backend.service
+
+            echo "Backend deployment successful"

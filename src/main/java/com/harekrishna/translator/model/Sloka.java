@@ -11,13 +11,22 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SanskritSloka {
+@Table(indexes = {
+    @Index(name = "idx_sloka_hierarchy", columnList = "scripture_id, majorDivision, minorDivision, verseNumber")
+})
+public class Sloka {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String slokaNumber; // e.g. 1.1.1 or "Sloka 1"
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scripture_id", nullable = false)
+    private Scripture scripture;
+
+    private Integer majorDivision; // e.g., 1 (Bala Kanda)
+    private Integer minorDivision; // e.g., 1 (Sarga 1)
+    private Integer verseNumber;   // e.g., 1
 
     @Lob
     @Column(columnDefinition = "TEXT")
@@ -30,6 +39,10 @@ public class SanskritSloka {
     @Lob
     @Column(columnDefinition = "TEXT")
     private String wordToWordMeaning;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String translation;
 
     @Lob
     @Column(columnDefinition = "TEXT")

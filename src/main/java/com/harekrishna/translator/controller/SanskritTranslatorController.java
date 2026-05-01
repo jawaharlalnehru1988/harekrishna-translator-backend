@@ -1,8 +1,8 @@
 package com.harekrishna.translator.controller;
 
-import com.harekrishna.translator.model.SanskritSloka;
-import com.harekrishna.translator.model.SanskritSlokaDTO;
-import com.harekrishna.translator.model.SanskritSlokaRequest;
+import com.harekrishna.translator.model.Sloka;
+import com.harekrishna.translator.model.SlokaDTO;
+import com.harekrishna.translator.model.SlokaRequest;
 import com.harekrishna.translator.service.SanskritTranslatorService;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -20,17 +20,17 @@ public class SanskritTranslatorController {
     }
 
     @PostMapping("/translate")
-    public Mono<SanskritSlokaDTO> translate(@RequestBody SanskritSlokaRequest request) {
+    public Mono<SlokaDTO> translate(@RequestBody SlokaRequest request) {
         return sanskritTranslatorService.translateSloka(request);
     }
 
     @PostMapping("/save")
-    public SanskritSloka save(@RequestBody SanskritSlokaDTO dto) {
+    public Sloka save(@RequestBody SlokaDTO dto) {
         return sanskritTranslatorService.saveOrUpdateSloka(dto);
     }
 
     @GetMapping("/history")
-    public List<SanskritSloka> getHistory() {
+    public List<Sloka> getHistory() {
         return sanskritTranslatorService.getAllSavedSlokas();
     }
 }

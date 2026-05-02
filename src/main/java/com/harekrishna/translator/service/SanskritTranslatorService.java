@@ -49,17 +49,27 @@ public class SanskritTranslatorService {
         Scripture scripture = scriptureRepository.findById(request.getScriptureId())
                 .orElseThrow(() -> new RuntimeException("Scripture not found with ID: " + request.getScriptureId()));
 
+        boolean isTamil = "TAMIL".equalsIgnoreCase(request.getTargetLanguage()) || request.getTargetLanguage() == null;
+        
+        String langInstructions = isTamil ? 
+            "1. transliteration (string): Tamil script transliteration.\n" +
+            "2. wordToWordMeaning (string): Tamil word-for-word meaning (Tamil transliteration - Tamil meaning;).\n" +
+            "3. translation (string): Literal Tamil translation.\n" +
+            "4. purport (string): Detailed spiritual explanation in Srila Prabhupada's style in Tamil." :
+            "1. transliteration (string): IAST (Roman script with diacritics) transliteration.\n" +
+            "2. wordToWordMeaning (string): English word-for-word meaning (Sanskrit - English meaning;).\n" +
+            "3. translation (string): Literal English translation.\n" +
+            "4. purport (string): Detailed spiritual explanation in Srila Prabhupada's style in English.";
+
         String systemPrompt = String.format(
-                "You are an expert Sanskrit and Tamil scholar specializing in Vaishnava literature. " +
+                "You are an expert Sanskrit and %s scholar specializing in Vaishnava literature. " +
                 "Translate the following sloka from '%s'. " +
                 "The hierarchy is %s: %d, %s: %d, Verse: %d. " +
-                "1. transliteration (string): Tamil script transliteration. " +
-                "2. wordToWordMeaning (string): Tamil word-for-word meaning (Tamil transliteration - Tamil meaning;). " +
-                "3. translation (string): Literal Tamil translation. " +
-                "4. purport (string): Detailed spiritual explanation in Srila Prabhupada's style. " +
-                "\n\nReturn ONLY a JSON object with these keys: transliteration, wordToWordMeaning, translation, purport.",
+                "%s\n\nReturn ONLY a JSON object with these keys: transliteration, wordToWordMeaning, translation, purport.",
+                isTamil ? "Tamil" : "English",
                 scripture.getTitle(), scripture.getMajorDivisionName(), request.getMajorDivision(), 
-                scripture.getMinorDivisionName(), request.getMinorDivision(), request.getVerseNumber());
+                scripture.getMinorDivisionName(), request.getMinorDivision(), request.getVerseNumber(),
+                langInstructions);
 
         String userPrompt = String.format("Sanskrit Text: %s", request.getSanskritText());
 
@@ -82,15 +92,29 @@ public class SanskritTranslatorService {
                         List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
                         Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                         String content = (String) message.get("content");
-                        SlokaDTO dto = objectMapper.readValue(content, SlokaDTO.class);
                         
-                        // Set metadata from request
+                        // Parse as a Map first to handle the keys dynamically
+                        Map<String, String> resultMap = objectMapper.readValue(content, Map.class);
+                        
+                        SlokaDTO dto = new SlokaDTO();
                         dto.setScriptureId(request.getScriptureId());
                         dto.setScriptureTitle(scripture.getTitle());
                         dto.setMajorDivision(request.getMajorDivision());
                         dto.setMinorDivision(request.getMinorDivision());
                         dto.setVerseNumber(request.getVerseNumber());
                         dto.setSanskritText(request.getSanskritText());
+
+                        if (isTamil) {
+                            dto.setTransliteration(resultMap.get("transliteration"));
+                            dto.setWordToWordMeaning(resultMap.get("wordToWordMeaning"));
+                            dto.setTranslation(resultMap.get("translation"));
+                            dto.setPurport(resultMap.get("purport"));
+                        } else {
+                            dto.setTransliterationEn(resultMap.get("transliteration"));
+                            dto.setWordToWordMeaningEn(resultMap.get("wordToWordMeaning"));
+                            dto.setTranslationEn(resultMap.get("translation"));
+                            dto.setPurportEn(resultMap.get("purport"));
+                        }
                         
                         return dto;
                     } catch (Exception e) {
@@ -100,19 +124,37 @@ public class SanskritTranslatorService {
     }
 
     public Sloka saveOrUpdateSloka(SlokaDTO dto) {
-        Scripture scripture = scriptureRepository.findById(dto.getScriptureId())
-                .orElseThrow(() -> new RuntimeException("Scripture not found"));
+        // Try to find existing sloka to update
+        Sloka sloka = slokaRepository.findByScriptureId(dto.getScriptureId()).stream()
+                .filter(s -> s.getMajorDivision().equals(dto.getMajorDivision()) && 
+                            s.getMinorDivision().equals(dto.getMinorDivision()) && 
+                            s.getVerseNumber().equals(dto.getVerseNumber()))
+                .findFirst()
+                .orElse(new Sloka());
 
-        Sloka sloka = new Sloka();
-        sloka.setScripture(scripture);
-        sloka.setMajorDivision(dto.getMajorDivision());
-        sloka.setMinorDivision(dto.getMinorDivision());
-        sloka.setVerseNumber(dto.getVerseNumber());
-        sloka.setSanskritText(dto.getSanskritText());
-        sloka.setTransliteration(dto.getTransliteration());
-        sloka.setWordToWordMeaning(dto.getWordToWordMeaning());
-        sloka.setTranslation(dto.getTranslation());
-        sloka.setPurport(dto.getPurport());
+        if (sloka.getId() == null) {
+            Scripture scripture = scriptureRepository.findById(dto.getScriptureId())
+                    .orElseThrow(() -> new RuntimeException("Scripture not found"));
+            sloka.setScripture(scripture);
+            sloka.setMajorDivision(dto.getMajorDivision());
+            sloka.setMinorDivision(dto.getMinorDivision());
+            sloka.setVerseNumber(dto.getVerseNumber());
+            sloka.setSanskritText(dto.getSanskritText());
+            sloka.setCreatedAt(LocalDateTime.now());
+        }
+
+        // Update Tamil fields if provided
+        if (dto.getTranslation() != null) sloka.setTranslation(dto.getTranslation());
+        if (dto.getPurport() != null) sloka.setPurport(dto.getPurport());
+        if (dto.getTransliteration() != null) sloka.setTransliteration(dto.getTransliteration());
+        if (dto.getWordToWordMeaning() != null) sloka.setWordToWordMeaning(dto.getWordToWordMeaning());
+
+        // Update English fields if provided
+        if (dto.getTranslationEn() != null) sloka.setTranslationEn(dto.getTranslationEn());
+        if (dto.getPurportEn() != null) sloka.setPurportEn(dto.getPurportEn());
+        if (dto.getTransliterationEn() != null) sloka.setTransliterationEn(dto.getTransliterationEn());
+        if (dto.getWordToWordMeaningEn() != null) sloka.setWordToWordMeaningEn(dto.getWordToWordMeaningEn());
+
         sloka.setApproved(true);
         sloka.setUpdatedAt(LocalDateTime.now());
         return slokaRepository.save(sloka);

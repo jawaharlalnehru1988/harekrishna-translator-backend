@@ -48,6 +48,23 @@ public class Sloka {
     @Column(columnDefinition = "TEXT")
     private String purport;
 
+    // English fields
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String transliterationEn;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String wordToWordMeaningEn;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String translationEn;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String purportEn;
+
     private boolean isApproved = false;
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();

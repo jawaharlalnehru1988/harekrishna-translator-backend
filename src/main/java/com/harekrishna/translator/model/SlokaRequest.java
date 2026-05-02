@@ -9,4 +9,5 @@ public class SlokaRequest {
     private Integer minorDivision;
     private Integer verseNumber;
     private String sanskritText;
+    private String targetLanguage; // "TAMIL" or "ENGLISH"
 }

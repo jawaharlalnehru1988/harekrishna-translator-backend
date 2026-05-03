@@ -30,16 +30,22 @@ public class TranslationService {
         this.webClient = webClientBuilder.build();
     }
 
-    public Mono<Translation> translate(String sourceText) {
-        String systemPrompt = "You are an expert translator specializing in Krishna conscious spiritual books. " +
-                "Translate the following English text into Tamil. " +
+    /**
+     * Translates a text without saving it to the repository immediately.
+     */
+    public Mono<String> translateOnly(String sourceText, String sourceLang, String targetLang) {
+        String systemPrompt = String.format(
+                "You are an expert translator specializing in Krishna conscious spiritual books. " +
+                "Translate the following %s text into %s. " +
                 "The translation must reflect the author's mood and intent, maintaining the spiritual depth and devotional fervor found in classic Vaishnava literature. " +
-                "Use appropriate Tamil spiritual terminology and ensure the tone is respectful and spiritually uplifting. " +
-                "CRITICAL: 1. Use ONLY pure Tamil script characters; do not mix characters from other languages like Telugu. " +
-                "2. Provide ONLY the plain text translation. Do not use any Markdown formatting such as bolding (**), headers (#), or other style markers.";
+                "Use appropriate %s spiritual terminology and ensure the tone is respectful and spiritually uplifting. " +
+                "CRITICAL: 1. Use ONLY pure %s script characters; do not mix characters from other languages. " +
+                "2. Provide ONLY the plain text translation. Do not use any Markdown formatting.",
+                sourceLang, targetLang, targetLang, targetLang
+        );
 
         return webClient.post()
-                .uri(baseUrl)
+                .uri(baseUrl + (baseUrl.endsWith("/") ? "chat/completions" : "/chat/completions"))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
                 .bodyValue(Map.of(
@@ -52,15 +58,15 @@ public class TranslationService {
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(response -> {
+                    @SuppressWarnings("unchecked")
                     List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                    String translatedText = (String) message.get("content");
-
-                    Translation translation = new Translation();
-                    translation.setSourceText(sourceText);
-                    translation.setTranslatedText(translatedText);
-                    translation.setSourceLanguage("English");
-                    return translationRepository.save(translation);
+                    return (String) message.get("content");
                 });
+    }
+
+    public Translation save(Translation translation) {
+        return translationRepository.save(translation);
     }
 }

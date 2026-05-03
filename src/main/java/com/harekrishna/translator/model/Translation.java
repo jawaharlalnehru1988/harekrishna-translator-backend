@@ -34,6 +34,7 @@ public class Translation {
     private String correctedText;
 
     private String sourceLanguage;
+    private String targetLanguage;
     private LocalDateTime createdAt = LocalDateTime.now();
     private boolean isApproved;
 }

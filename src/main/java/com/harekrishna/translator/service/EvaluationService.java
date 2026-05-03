@@ -55,7 +55,9 @@ public class EvaluationService {
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(response -> {
+                    @SuppressWarnings("unchecked")
                     List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                     String content = (String) message.get("content");
 

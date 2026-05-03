@@ -25,15 +25,24 @@ public class TranslationController {
         return translationRepository.findAll();
     }
 
-    @PostMapping
-    public Mono<Translation> createTranslation(@RequestBody Map<String, String> request) {
+    /**
+     * Endpoint for batch translation calls. Returns just the string.
+     */
+    @PostMapping("/batch")
+    public Mono<String> translateBatch(@RequestBody Map<String, String> request) {
         String sourceText = request.get("sourceText");
+        String sourceLang = request.getOrDefault("sourceLanguage", "English");
+        String targetLang = request.getOrDefault("targetLanguage", "Tamil");
         
-        if (sourceText != null && sourceText.length() > 3000) {
-            throw new IllegalArgumentException("Text is too long. Please limit your input to 3,000 characters for the best spiritual accuracy.");
-        }
-        
-        return translationService.translate(sourceText);
+        return translationService.translateOnly(sourceText, sourceLang, targetLang);
+    }
+
+    /**
+     * Endpoint to save a final combined translation to history.
+     */
+    @PostMapping("/save")
+    public Translation saveTranslation(@RequestBody Translation translation) {
+        return translationService.save(translation);
     }
 
     @PutMapping("/{id}")

@@ -10,4 +10,5 @@ public class SlokaRequest {
     private Integer verseNumber;
     private String sanskritText;
     private String targetLanguage; // "TAMIL" or "ENGLISH"
+    private boolean includePurport = true;
 }

@@ -70,6 +70,7 @@ public class SanskritTranslatorService {
 
                 SlokaDTO tamilResult = translatorAgent.translateToTamilFromEnglish(
                     request.getSanskritText(), 
+                    englishResult.getTransliteration(),
                     enTranslation, 
                     enPurport
                 );
@@ -91,6 +92,7 @@ public class SanskritTranslatorService {
                     
                     tamilResult = translatorAgent.translateToTamilFromEnglish(
                         request.getSanskritText(), 
+                        englishResult.getTransliteration(),
                         enTranslation, 
                         warning + "REFERENCE: " + enPurport
                     );

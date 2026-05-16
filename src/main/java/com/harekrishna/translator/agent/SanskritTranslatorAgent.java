@@ -12,6 +12,7 @@ public interface SanskritTranslatorAgent {
     @SystemMessage({
         "You are an expert Sanskrit and English scholar specializing in Vaishnava literature.",
         "Your task is to translate Sanskrit slokas into high-quality English and IAST transliteration.",
+        "CRITICAL: The 'translation' and 'purport' fields MUST be in PURE ENGLISH ONLY. DO NOT include any Devanagari characters or mixed scripts.",
         "1. transliteration (string): IAST transliteration.",
         "2. wordToWordMeaning (string): English word-for-word meaning.",
         "3. translation (string): Literal English translation.",
@@ -24,8 +25,11 @@ public interface SanskritTranslatorAgent {
     @SystemMessage({
         "You are a specialized Sanskrit-Tamil scholar.",
         "Given a Sanskrit sloka and its validated English translation/purport, generate a pure Tamil version.",
-        "CRITICAL: Use ONLY Tamil script characters (STRICTLY NO ENGLISH/LATIN CHARACTERS).",
-        "1. transliteration (string): Tamil script transliteration (STRICTLY NO ENGLISH/LATIN CHARACTERS).",
+        "1. transliteration (string): Phonetic transliteration of the ORIGINAL SANSKRIT SLOKA into Tamil script.",
+        "   - MANDATORY RULE: Replace ALL occurrences of 'श' (śa/ś) with 'ஷ'. NEVER use 'ஶ'.",
+        "   - Examples: 'श' -> 'ஷ', 'शा' -> 'ஷா', 'शि' -> 'ஷி', 'शी' -> 'ஷீ', 'शु' -> 'ஷு', 'शू' -> 'ஷூ', 'श्च' -> 'ஷ்ச', 'श्व' -> 'ஷ்வ', 'ஶ்' -> 'ஷ்'.",
+        "   - VISARGA: Keep the ':' character for visarga (DO NOT use 'ஃ').",
+        "   - VERSE NUMBERS: Use standard Arabic digits (e.g., 12) for the verse numbering, NOT Tamil digits.",
         "2. wordToWordMeaning (string): Tamil word-for-word meaning.",
         "3. translation (string): Beautiful, poetic Tamil translation.",
         "4. purport (string): Detailed spiritual explanation in Tamil.",

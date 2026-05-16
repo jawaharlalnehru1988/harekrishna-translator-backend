@@ -20,6 +20,10 @@ public class SanskritTranslatorService {
 
     // Pattern to detect Latin/English characters
     private static final Pattern LATIN_PATTERN = Pattern.compile("[a-zA-Z]");
+    // Pattern to detect Devanagari (Sanskrit/Hindi) characters
+    private static final Pattern DEVANAGARI_PATTERN = Pattern.compile("[\\u0900-\\u097F]");
+    // Pattern to detect the old Tamil character 'ஶ' (Grantha sha)
+    private static final Pattern OLD_TAMIL_SHA_PATTERN = Pattern.compile("\\u0BB6");
 
     public SanskritTranslatorService(SlokaRepository slokaRepository, 
                                      ScriptureRepository scriptureRepository,
@@ -36,6 +40,14 @@ public class SanskritTranslatorService {
 
             // STEP 1: Node English - Generate high-quality English foundation
             SlokaDTO englishResult = translatorAgent.translateToEnglish(request.getSanskritText());
+            
+            // Validate English results for Devanagari script leakage
+            if (containsDevanagari(englishResult.getTranslation()) || containsDevanagari(englishResult.getPurport())) {
+                System.out.println("Devanagari leakage detected in English results. Triggering self-correction...");
+                englishResult = translatorAgent.translateToEnglish(
+                    request.getSanskritText() + "\nSTRICT: Use ONLY English characters in translation and purport. NO DEVANAGARI."
+                );
+            }
             
             SlokaDTO finalDto = new SlokaDTO();
             finalDto.setScriptureId(request.getScriptureId());
@@ -63,13 +75,24 @@ public class SanskritTranslatorService {
                 );
 
                 // STEP 3: Safe Boundary Check (Max 1 Retry)
-                if (containsLatin(tamilResult.getTransliteration()) || containsLatin(tamilResult.getTranslation())) {
-                    System.out.println("Script leakage detected. Triggering self-correction node...");
+                if (containsLatin(tamilResult.getTransliteration()) || 
+                    containsLatin(tamilResult.getTranslation()) ||
+                    containsOldTamilSha(tamilResult.getTransliteration())) {
+                    
+                    String warning = "STRICT WARNING: PREVIOUS ATTEMPT FAILED. ";
+                    if (containsOldTamilSha(tamilResult.getTransliteration())) {
+                        warning += "DO NOT USE THE CHARACTER 'ஶ'. USE 'ஷ' INSTEAD. ";
+                    }
+                    if (containsLatin(tamilResult.getTransliteration()) || containsLatin(tamilResult.getTranslation())) {
+                        warning += "DO NOT USE LATIN CHARACTERS. ";
+                    }
+
+                    System.out.println("Tamil script leakage or old character detected. Triggering self-correction node...");
                     
                     tamilResult = translatorAgent.translateToTamilFromEnglish(
                         request.getSanskritText(), 
                         enTranslation, 
-                        "STRICT WARNING: PREVIOUS ATTEMPT FAILED. DO NOT USE LATIN CHARACTERS. REFERENCE: " + enPurport
+                        warning + "REFERENCE: " + enPurport
                     );
                 }
 
@@ -86,6 +109,16 @@ public class SanskritTranslatorService {
     private boolean containsLatin(String text) {
         if (text == null) return false;
         return LATIN_PATTERN.matcher(text).find();
+    }
+
+    private boolean containsDevanagari(String text) {
+        if (text == null) return false;
+        return DEVANAGARI_PATTERN.matcher(text).find();
+    }
+
+    private boolean containsOldTamilSha(String text) {
+        if (text == null) return false;
+        return OLD_TAMIL_SHA_PATTERN.matcher(text).find();
     }
 
     public Sloka saveOrUpdateSloka(SlokaDTO dto) {

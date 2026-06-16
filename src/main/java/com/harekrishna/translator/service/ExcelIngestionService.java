@@ -52,9 +52,15 @@ public class ExcelIngestionService {
             throw new RuntimeException("Failed to parse Excel file", e);
         }
 
-        log.info("Parsed {} rows. Starting ingestion into Vector DB...", documents.size());
+        log.info("Parsed {} rows. Starting ingestion into Vector DB in batches...", documents.size());
         if (!documents.isEmpty()) {
-            embeddingStoreIngestor.ingest(documents);
+            int batchSize = 1000;
+            for (int i = 0; i < documents.size(); i += batchSize) {
+                int end = Math.min(documents.size(), i + batchSize);
+                List<Document> batch = documents.subList(i, end);
+                log.info("Ingesting batch {} to {}...", i, end);
+                embeddingStoreIngestor.ingest(batch);
+            }
         }
         log.info("Ingestion complete.");
     }

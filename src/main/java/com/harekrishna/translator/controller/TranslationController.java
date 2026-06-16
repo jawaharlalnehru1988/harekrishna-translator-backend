@@ -3,6 +3,7 @@ package com.harekrishna.translator.controller;
 import com.harekrishna.translator.model.Translation;
 import com.harekrishna.translator.repository.TranslationRepository;
 import com.harekrishna.translator.service.TranslationService;
+import com.harekrishna.translator.service.TranslationEngineService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -19,6 +20,9 @@ public class TranslationController {
 
     @Autowired
     private TranslationService translationService;
+
+    @Autowired
+    private TranslationEngineService translationEngineService;
 
     @GetMapping
     public List<Translation> getAllTranslations() {
@@ -54,5 +58,10 @@ public class TranslationController {
         translation.setApproved(translationDetails.isApproved());
         
         return translationRepository.save(translation);
+    }
+    @PostMapping("/v1/translate")
+    public Mono<String> translateV1(@RequestBody Map<String, String> request) {
+        String sourceText = request.get("sourceText");
+        return Mono.fromCallable(() -> translationEngineService.translateText(sourceText));
     }
 }

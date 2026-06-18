@@ -54,7 +54,7 @@ public class ExcelIngestionService {
 
         log.info("Parsed {} rows. Starting ingestion into Vector DB in batches...", documents.size());
         if (!documents.isEmpty()) {
-            int batchSize = 1000;
+            int batchSize = 50; // Reduced to 50 because Purports are very long and split into many chunks
             for (int i = 0; i < documents.size(); i += batchSize) {
                 int end = Math.min(documents.size(), i + batchSize);
                 List<Document> batch = documents.subList(i, end);

@@ -6,6 +6,8 @@ import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
+import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -63,6 +65,18 @@ public class VectorDbConfig {
                 .documentSplitter(DocumentSplitters.recursive(500, 50)) // Smaller chunks for precise matching
                 .embeddingModel(embeddingModel)
                 .embeddingStore(store)
+                .build();
+    }
+
+    @Bean
+    public ContentRetriever contentRetriever(
+            EmbeddingStore<dev.langchain4j.data.segment.TextSegment> store,
+            EmbeddingModel embeddingModel) {
+        return EmbeddingStoreContentRetriever.builder()
+                .embeddingStore(store)
+                .embeddingModel(embeddingModel)
+                .maxResults(3)
+                .minScore(0.7)
                 .build();
     }
 }

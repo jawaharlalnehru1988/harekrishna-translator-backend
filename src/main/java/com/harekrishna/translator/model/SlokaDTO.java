@@ -16,6 +16,7 @@ public class SlokaDTO {
     private Integer majorDivision;
     private Integer minorDivision;
     private Integer verseNumber;
+    private String slokaNumber;
     
     private String sanskritText;
     

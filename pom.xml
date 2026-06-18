@@ -81,6 +81,13 @@
 			<artifactId>langchain4j-pgvector</artifactId>
 			<version>0.29.0</version>
 		</dependency>
+
+		<!-- Jsoup for HTML Scraping -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.17.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>

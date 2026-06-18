@@ -17,6 +17,7 @@ public class SanskritTranslatorService {
     private final SlokaRepository slokaRepository;
     private final ScriptureRepository scriptureRepository;
     private final SanskritTranslatorAgent translatorAgent;
+    private final com.harekrishna.translator.repository.RamayanaSlokaRepository ramayanaSlokaRepository;
 
     // Pattern to detect Latin/English characters
     private static final Pattern LATIN_PATTERN = Pattern.compile("[a-zA-Z]");
@@ -27,10 +28,12 @@ public class SanskritTranslatorService {
 
     public SanskritTranslatorService(SlokaRepository slokaRepository, 
                                      ScriptureRepository scriptureRepository,
-                                     SanskritTranslatorAgent translatorAgent) {
+                                     SanskritTranslatorAgent translatorAgent,
+                                     com.harekrishna.translator.repository.RamayanaSlokaRepository ramayanaSlokaRepository) {
         this.slokaRepository = slokaRepository;
         this.scriptureRepository = scriptureRepository;
         this.translatorAgent = translatorAgent;
+        this.ramayanaSlokaRepository = ramayanaSlokaRepository;
     }
 
     public Mono<SlokaDTO> translateSloka(SlokaRequest request) {
@@ -68,9 +71,13 @@ public class SanskritTranslatorService {
                 String enTranslation = englishResult.getTranslation() != null ? englishResult.getTranslation() : "";
                 String enPurport = englishResult.getPurport() != null ? englishResult.getPurport() : "No purport requested.";
 
+                String slokaRef = scripture.getTitle() + " " + request.getMajorDivision() + "." + request.getMinorDivision() + "." + request.getVerseNumber();
+
                 SlokaDTO tamilResult = translatorAgent.translateToTamilFromEnglish(
+                    slokaRef,
                     request.getSanskritText(), 
                     englishResult.getTransliteration(),
+                    englishResult.getWordToWordMeaning(),
                     enTranslation, 
                     enPurport
                 );
@@ -91,8 +98,10 @@ public class SanskritTranslatorService {
                     System.out.println("Tamil script leakage or old character detected. Triggering self-correction node...");
                     
                     tamilResult = translatorAgent.translateToTamilFromEnglish(
+                        slokaRef,
                         request.getSanskritText(), 
                         englishResult.getTransliteration(),
+                        englishResult.getWordToWordMeaning(),
                         enTranslation, 
                         warning + "REFERENCE: " + enPurport
                     );
@@ -159,5 +168,104 @@ public class SanskritTranslatorService {
     
     public List<Sloka> getAllSavedSlokas() {
         return slokaRepository.findAll();
+    }
+
+    public ExtractionResponse translateContextToTamil(ExtractionResponse englishContext) {
+        SlokaDTO tamilResult = translatorAgent.translateToTamilFromEnglish(
+                englishContext.getSlokaNumber(),
+                englishContext.getSanskritSloka(),
+                englishContext.getSlokaTransliteration(),
+                englishContext.getWordToWordMeaning(),
+                englishContext.getTranslation(),
+                englishContext.getPurport()
+        );
+
+        if (containsLatin(tamilResult.getTransliteration()) || 
+            containsLatin(tamilResult.getTranslation()) ||
+            containsOldTamilSha(tamilResult.getTransliteration())) {
+            
+            String warning = "STRICT WARNING: PREVIOUS ATTEMPT FAILED. ";
+            if (containsOldTamilSha(tamilResult.getTransliteration())) {
+                warning += "DO NOT USE THE CHARACTER 'ஶ'. USE 'ஷ' INSTEAD. ";
+            }
+            if (containsLatin(tamilResult.getTransliteration()) || containsLatin(tamilResult.getTranslation())) {
+                warning += "DO NOT USE LATIN CHARACTERS. ";
+            }
+
+            System.out.println("Tamil script leakage or old character detected in Extractor API. Triggering self-correction node...");
+            
+            tamilResult = translatorAgent.translateToTamilFromEnglish(
+                englishContext.getSlokaNumber(),
+                englishContext.getSanskritSloka(),
+                englishContext.getSlokaTransliteration(),
+                englishContext.getWordToWordMeaning(),
+                englishContext.getTranslation(),
+                warning + "REFERENCE: " + englishContext.getPurport()
+            );
+        }
+
+        ExtractionResponse response = new ExtractionResponse();
+        response.setSlokaNumber(tamilResult.getSlokaNumber() != null ? tamilResult.getSlokaNumber() : englishContext.getSlokaNumber());
+        response.setSanskritSloka(englishContext.getSanskritSloka());
+        response.setSlokaTransliteration(tamilResult.getTransliteration());
+        response.setWordToWordMeaning(tamilResult.getWordToWordMeaning());
+        response.setTranslation(tamilResult.getTranslation());
+        response.setPurport(tamilResult.getPurport());
+
+        return response;
+    }
+
+    public ExtractionResponse generateEnglishContextForRamayana(ExtractionResponse payload) {
+        // Assume generatePurport is true unless user explicitly disables it, 
+        // wait the user said "purport(optional by default disabled)". So we should read a boolean or just default to false if purport is empty.
+        // We will default generatePurport to false unless payload explicitly says otherwise, or we can just look if they passed an instruction.
+        // Let's check if the payload's purport is "GENERATE". If so, generate it. Otherwise don't.
+        boolean generatePurport = "GENERATE".equalsIgnoreCase(payload.getPurport());
+
+        SlokaDTO englishResult = translatorAgent.generateRamayanaEnglish(
+                payload.getSanskritSloka(),
+                payload.getSlokaTransliteration(),
+                generatePurport
+        );
+
+        ExtractionResponse response = new ExtractionResponse();
+        response.setSlokaNumber(payload.getSlokaNumber());
+        response.setSanskritSloka(payload.getSanskritSloka());
+        response.setSlokaTransliteration(payload.getSlokaTransliteration());
+        response.setWordToWordMeaning(englishResult.getWordToWordMeaning());
+        response.setTranslation(englishResult.getTranslation());
+        response.setPurport(englishResult.getPurport());
+
+        return response;
+    }
+
+    public RamayanaSloka saveOrUpdateRamayanaSloka(RamayanaSaveRequest request) {
+        RamayanaSloka sloka = this.ramayanaSlokaRepository.findByCantoNumberAndChapterNumberAndVerseNumber(
+                request.getCantoNumber(), request.getChapterNumber(), request.getVerseNumber()
+        ).orElse(new RamayanaSloka());
+
+        sloka.setCantoName(request.getCantoName());
+        sloka.setCantoNameTa(request.getCantoNameTa());
+        sloka.setCantoNumber(request.getCantoNumber());
+        sloka.setChapterNumber(request.getChapterNumber());
+        sloka.setVerseNumber(request.getVerseNumber());
+        sloka.setSanskritSloka(request.getSanskritSloka());
+
+        sloka.setTransliterationEn(request.getTransliterationEn());
+        sloka.setWordToWordMeaningEn(request.getWordToWordMeaningEn());
+        sloka.setTranslationEn(request.getTranslationEn());
+        sloka.setPurportEn(request.getPurportEn());
+
+        sloka.setTransliterationTa(request.getTransliterationTa());
+        sloka.setWordToWordMeaningTa(request.getWordToWordMeaningTa());
+        sloka.setTranslationTa(request.getTranslationTa());
+        sloka.setPurportTa(request.getPurportTa());
+
+        sloka.setUpdatedAt(java.time.LocalDateTime.now());
+        if (sloka.getId() == null) {
+            sloka.setCreatedAt(java.time.LocalDateTime.now());
+        }
+
+        return this.ramayanaSlokaRepository.save(sloka);
     }
 }

@@ -39,8 +39,10 @@ public interface SanskritTranslatorAgent {
 
     @SystemMessage({
         "You are a specialized Sanskrit-Tamil scholar.",
+        "You are translating a verse from the scripture: {{scriptureName}}.",
+        "IMPORTANT STANDARD: Write in a mood that glorifies the Supreme Lord of this scripture (e.g. Lord Rama for Ramayana, Lord Krishna for Bhagavad Gita) and attracts people towards devotional consciousness, exactly like Srila Prabhupada did.",
         "Given a Sanskrit sloka, its Sloka Number, English IAST transliteration, English Word-for-Word Meaning, and its validated English translation/purport, generate a pure Tamil version.",
-        "IMPORTANT STANDARD: The Tamil generation MUST strictly follow the English version. Ensure your Tamil transliteration, word-to-word meaning, translation, and purport exactly correspond to and follow the provided English transliteration, word-to-word meaning, translation, and purport.",
+        "The Tamil generation MUST strictly follow the English version. Ensure your Tamil transliteration, word-to-word meaning, translation, and purport exactly correspond to and follow the provided English transliteration, word-to-word meaning, translation, and purport.",
         "CRITICAL INSTRUCTION FOR RAG CONTEXT: You will be provided with retrieved context from a database. This context may contain translations of similar verses. DO NOT blindly copy the retrieved translations. You MUST translate the EXACT English text provided in the User Message. Use the retrieved context ONLY as a 'Style and Vocabulary Guide' for difficult terms.",
         "0. slokaNumber (string): Translate the sloka number string into Tamil (e.g., 'Bg. 1.1' -> 'ப கீ 1.1', 'SB 1.2.3' -> 'ஸ்ரீ பா 1.2.3').",
         "1. transliteration (string): Phonetic transliteration of the ORIGINAL SANSKRIT SLOKA into Tamil script.",
@@ -56,6 +58,7 @@ public interface SanskritTranslatorAgent {
     })
     @UserMessage("Sloka Number: {{slokaNumber}}\nSanskrit: {{sanskrit}}\nEnglish IAST: {{englishTransliteration}}\nEnglish Word-for-Word: {{englishWordToWordMeaning}}\nEnglish Translation: {{englishTranslation}}\nEnglish Purport: {{englishPurport}}")
     SlokaDTO translateToTamilFromEnglish(
+        @V("scriptureName") String scriptureName,
         @V("slokaNumber") String slokaNumber,
         @V("sanskrit") String sanskrit, 
         @V("englishTransliteration") String englishTransliteration,

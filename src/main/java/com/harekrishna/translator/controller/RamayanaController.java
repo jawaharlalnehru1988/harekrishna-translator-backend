@@ -6,6 +6,7 @@ import com.harekrishna.translator.repository.RamayanaSlokaRepository;
 import com.harekrishna.translator.service.SanskritTranslatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class RamayanaController {
     private final RamayanaSlokaRepository ramayanaRepository;
 
     @PostMapping("/admin/save")
+    @Transactional
     public ResponseEntity<?> saveRamayanaSloka(@RequestBody RamayanaSaveRequest request) {
         try {
             var existingOpt = ramayanaRepository.findByCantoNumberAndChapterNumberAndVerseNumber(
@@ -40,6 +42,7 @@ public class RamayanaController {
     }
 
     @GetMapping("/toc")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getTableOfContents() {
         List<RamayanaSloka> all = ramayanaRepository.findAll();
         
@@ -82,47 +85,49 @@ public class RamayanaController {
     }
 
     @GetMapping("/{language}/{canto}/{chapter}/{verse}")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getSloka(
             @PathVariable String language,
             @PathVariable Integer canto,
             @PathVariable Integer chapter,
             @PathVariable Integer verse) {
 
-        RamayanaSloka sloka = ramayanaRepository.findByCantoNumberAndChapterNumberAndVerseNumber(canto, chapter, verse)
-                .orElse(null);
+        try {
+            RamayanaSloka sloka = ramayanaRepository.findByCantoNumberAndChapterNumberAndVerseNumber(canto, chapter, verse)
+                    .orElse(null);
 
-        if (sloka == null) {
-            return ResponseEntity.notFound().build();
+            if (sloka == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Return language-specific response
+            Map<String, Object> response = new java.util.HashMap<>();
+            if ("tamil".equalsIgnoreCase(language)) {
+                response.put("cantoName", sloka.getCantoNameTa() != null ? sloka.getCantoNameTa() : sloka.getCantoName());
+                response.put("cantoNumber", sloka.getCantoNumber());
+                response.put("chapterNumber", sloka.getChapterNumber());
+                response.put("verseNumber", sloka.getVerseNumber());
+                response.put("sanskritSloka", sloka.getSanskritSloka());
+                response.put("transliteration", sloka.getTransliterationTa() != null ? sloka.getTransliterationTa() : "");
+                response.put("wordToWordMeaning", sloka.getWordToWordMeaningTa() != null ? sloka.getWordToWordMeaningTa() : "");
+                response.put("translation", sloka.getTranslationTa() != null ? sloka.getTranslationTa() : "");
+                response.put("purport", sloka.getPurportTa() != null ? sloka.getPurportTa() : "");
+            } else {
+                response.put("cantoName", sloka.getCantoName());
+                response.put("cantoNumber", sloka.getCantoNumber());
+                response.put("chapterNumber", sloka.getChapterNumber());
+                response.put("verseNumber", sloka.getVerseNumber());
+                response.put("sanskritSloka", sloka.getSanskritSloka());
+                response.put("transliteration", sloka.getTransliterationEn() != null ? sloka.getTransliterationEn() : "");
+                response.put("wordToWordMeaning", sloka.getWordToWordMeaningEn() != null ? sloka.getWordToWordMeaningEn() : "");
+                response.put("translation", sloka.getTranslationEn() != null ? sloka.getTranslationEn() : "");
+                response.put("purport", sloka.getPurportEn() != null ? sloka.getPurportEn() : "");
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("error", e.toString(), "message", e.getMessage() != null ? e.getMessage() : "null"));
         }
-
-        // Return language-specific response
-        Map<String, Object> response;
-        if ("tamil".equalsIgnoreCase(language)) {
-            response = Map.of(
-                "cantoName", sloka.getCantoNameTa() != null ? sloka.getCantoNameTa() : sloka.getCantoName(),
-                "cantoNumber", sloka.getCantoNumber(),
-                "chapterNumber", sloka.getChapterNumber(),
-                "verseNumber", sloka.getVerseNumber(),
-                "sanskritSloka", sloka.getSanskritSloka(),
-                "transliteration", sloka.getTransliterationTa() != null ? sloka.getTransliterationTa() : "",
-                "wordToWordMeaning", sloka.getWordToWordMeaningTa() != null ? sloka.getWordToWordMeaningTa() : "",
-                "translation", sloka.getTranslationTa() != null ? sloka.getTranslationTa() : "",
-                "purport", sloka.getPurportTa() != null ? sloka.getPurportTa() : ""
-            );
-        } else {
-            response = Map.of(
-                "cantoName", sloka.getCantoName(),
-                "cantoNumber", sloka.getCantoNumber(),
-                "chapterNumber", sloka.getChapterNumber(),
-                "verseNumber", sloka.getVerseNumber(),
-                "sanskritSloka", sloka.getSanskritSloka(),
-                "transliteration", sloka.getTransliterationEn() != null ? sloka.getTransliterationEn() : "",
-                "wordToWordMeaning", sloka.getWordToWordMeaningEn() != null ? sloka.getWordToWordMeaningEn() : "",
-                "translation", sloka.getTranslationEn() != null ? sloka.getTranslationEn() : "",
-                "purport", sloka.getPurportEn() != null ? sloka.getPurportEn() : ""
-            );
-        }
-
-        return ResponseEntity.ok(response);
     }
 }

@@ -5,6 +5,7 @@ import com.harekrishna.translator.model.*;
 import com.harekrishna.translator.repository.ScriptureRepository;
 import com.harekrishna.translator.repository.SlokaRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -74,6 +75,7 @@ public class SanskritTranslatorService {
                 String slokaRef = scripture.getTitle() + " " + request.getMajorDivision() + "." + request.getMinorDivision() + "." + request.getVerseNumber();
 
                 SlokaDTO tamilResult = translatorAgent.translateToTamilFromEnglish(
+                    scripture.getTitle(),
                     slokaRef,
                     request.getSanskritText(), 
                     englishResult.getTransliteration(),
@@ -98,6 +100,7 @@ public class SanskritTranslatorService {
                     System.out.println("Tamil script leakage or old character detected. Triggering self-correction node...");
                     
                     tamilResult = translatorAgent.translateToTamilFromEnglish(
+                        scripture.getTitle(),
                         slokaRef,
                         request.getSanskritText(), 
                         englishResult.getTransliteration(),
@@ -172,6 +175,7 @@ public class SanskritTranslatorService {
 
     public ExtractionResponse translateContextToTamil(ExtractionResponse englishContext) {
         SlokaDTO tamilResult = translatorAgent.translateToTamilFromEnglish(
+                "Ramayana", // Assuming Extraction API is primarily used for Ramayana as requested
                 englishContext.getSlokaNumber(),
                 englishContext.getSanskritSloka(),
                 englishContext.getSlokaTransliteration(),
@@ -195,6 +199,7 @@ public class SanskritTranslatorService {
             System.out.println("Tamil script leakage or old character detected in Extractor API. Triggering self-correction node...");
             
             tamilResult = translatorAgent.translateToTamilFromEnglish(
+                "Ramayana", // Assuming Extraction API is primarily used for Ramayana
                 englishContext.getSlokaNumber(),
                 englishContext.getSanskritSloka(),
                 englishContext.getSlokaTransliteration(),
@@ -239,6 +244,7 @@ public class SanskritTranslatorService {
         return response;
     }
 
+    @Transactional
     public RamayanaSloka saveOrUpdateRamayanaSloka(RamayanaSaveRequest request) {
         RamayanaSloka sloka = this.ramayanaSlokaRepository.findByCantoNumberAndChapterNumberAndVerseNumber(
                 request.getCantoNumber(), request.getChapterNumber(), request.getVerseNumber()

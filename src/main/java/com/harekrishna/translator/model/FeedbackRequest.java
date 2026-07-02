@@ -7,4 +7,5 @@ public class FeedbackRequest {
     private String englishText;
     private String correctedTamilText;
     private IngestionType type;
+    private String scriptureContext;
 }

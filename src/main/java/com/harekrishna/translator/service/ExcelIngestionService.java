@@ -13,6 +13,10 @@ import org.springframework.stereotype.Service;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import com.harekrishna.translator.model.UploadStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -21,8 +25,14 @@ public class ExcelIngestionService {
 
     private final EmbeddingStoreIngestor embeddingStoreIngestor;
 
-    public void ingestExcel(InputStream inputStream, IngestionType type) {
-        log.info("Starting ingestion for type: {}", type);
+    private final Map<String, UploadStatus> uploadStatuses = new ConcurrentHashMap<>();
+
+    public UploadStatus getUploadStatus(String jobId) {
+        return uploadStatuses.get(jobId);
+    }
+
+    public String ingestExcel(InputStream inputStream, IngestionType type, String scriptureContext) {
+        log.info("Starting ingestion for type: {}, scripture: {}", type, scriptureContext);
         List<Document> documents = new ArrayList<>();
 
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
@@ -42,6 +52,7 @@ public class ExcelIngestionService {
                         Metadata metadata = new Metadata();
                         metadata.put("tamil_output", tamilText);
                         metadata.put("type", type.name());
+                        metadata.put("scripture_context", scriptureContext);
 
                         documents.add(new Document(englishText, metadata));
                     }
@@ -53,16 +64,36 @@ public class ExcelIngestionService {
         }
 
         log.info("Parsed {} rows. Starting ingestion into Vector DB in batches...", documents.size());
+        
+        String jobId = UUID.randomUUID().toString();
+        UploadStatus status = new UploadStatus(jobId, documents.size(), 0, "IN_PROGRESS", null);
+        uploadStatuses.put(jobId, status);
+
         if (!documents.isEmpty()) {
-            int batchSize = 50; // Reduced to 50 because Purports are very long and split into many chunks
-            for (int i = 0; i < documents.size(); i += batchSize) {
-                int end = Math.min(documents.size(), i + batchSize);
-                List<Document> batch = documents.subList(i, end);
-                log.info("Ingesting batch {} to {}...", i, end);
-                embeddingStoreIngestor.ingest(batch);
-            }
+            new Thread(() -> {
+                try {
+                    int batchSize = 50; // Reduced to 50 because Purports are very long and split into many chunks
+                    for (int i = 0; i < documents.size(); i += batchSize) {
+                        int end = Math.min(documents.size(), i + batchSize);
+                        List<Document> batch = documents.subList(i, end);
+                        log.info("Ingesting batch {} to {}...", i, end);
+                        embeddingStoreIngestor.ingest(batch);
+                        
+                        status.setProcessedRows(end);
+                    }
+                    log.info("Ingestion complete for type: {}", type);
+                    status.setStatus("COMPLETED");
+                } catch (Exception e) {
+                    log.error("Background ingestion failed", e);
+                    status.setStatus("FAILED");
+                    status.setErrorMessage(e.getMessage());
+                }
+            }).start();
+        } else {
+            status.setStatus("COMPLETED");
         }
-        log.info("Ingestion complete.");
+        
+        return jobId;
     }
 
     private String getCellValue(Cell cell) {
@@ -74,7 +105,7 @@ public class ExcelIngestionService {
         return "";
     }
 
-    public void saveFeedback(String englishText, String tamilText, IngestionType type) {
+    public void saveFeedback(String englishText, String tamilText, IngestionType type, String scriptureContext) {
         if (englishText == null || tamilText == null || englishText.isBlank() || tamilText.isBlank()) {
             throw new IllegalArgumentException("English and Tamil text cannot be empty");
         }
@@ -82,6 +113,7 @@ public class ExcelIngestionService {
         Metadata metadata = new Metadata();
         metadata.put("tamil_output", tamilText);
         metadata.put("type", type.name());
+        metadata.put("scripture_context", scriptureContext);
 
         Document doc = new Document(englishText, metadata);
         embeddingStoreIngestor.ingest(List.of(doc));
